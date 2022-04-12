@@ -1,12 +1,6 @@
-# Remotion video
+# Remotion + D3.js example
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <img src="https://github.com/remotion-dev/logo/raw/main/withtitle/element-0.png">
-  </a>
-</p>
-
-Welcome to your Remotion project!
+https://user-images.githubusercontent.com/1629785/163010892-f4c2bcfc-bb51-4f35-9d7f-2e244492ef59.mp4
 
 ## Commands
 
