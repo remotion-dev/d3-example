@@ -1,6 +1,6 @@
+import * as d3 from 'd3';
 import {useEffect, useRef} from 'react';
 import {AbsoluteFill, spring, useCurrentFrame, useVideoConfig} from 'remotion';
-import * as d3 from 'd3';
 
 // Dataset
 type Letter = {
@@ -41,8 +41,8 @@ const yDomain = new d3.InternSet(
 	d3.groupSort(
 		data,
 		([d]) => -d.frequency,
-		(d) => d.letter
-	)
+		(d) => d.letter,
+	),
 );
 
 const x = (d: Letter) => d.frequency;
@@ -75,7 +75,6 @@ export const Comp: React.FC = () => {
 	useEffect(() => {
 		if (!svgRef.current) return;
 
-		svgRef.current.innerHTML = '';
 		const X = d3.map(data, x);
 		const Y = d3.map(data, y);
 
@@ -105,63 +104,110 @@ export const Comp: React.FC = () => {
 		const formatValue = xScale.tickFormat(100, xFormat);
 		const title = (i: number) => `${formatValue(X[i])}`;
 
-		svg
-			.append('g')
-			.attr('transform', `translate(0,${marginTop})`)
-			.call(xAxis)
-			.call((g) => g.select('.domain').remove())
-			.call((g) =>
-				g
-					.selectAll('.tick line')
-					.clone()
-					.attr('y2', height - marginTop - marginBottom)
-					.attr('stroke-opacity', 0.1)
-			)
-			.call((g) =>
-				g
-					.append('text')
-					.attr('x', width - marginRight)
-					.attr('y', -22)
-					.attr('fill', 'currentColor')
-					.attr('text-anchor', 'end')
-					.text(xLabel)
-			);
+		// Craete x-axis (only once because it's static)
+		if (!svg.select('.x-axis').node()) {
+			svg
+				.append('g')
+				.classed('x-axis', true)
+				.attr('transform', `translate(0,${marginTop})`)
+				.call(xAxis)
+				.call((g) => g.select('.domain').remove())
+				.call((g) =>
+					g
+						.selectAll('.tick line')
+						.clone()
+						.attr('y2', height - marginTop - marginBottom)
+						.attr('stroke-opacity', 0.1),
+				)
+				.call((g) =>
+					g
+						.append('text')
+						.attr('x', width - marginRight)
+						.attr('y', -22)
+						.attr('fill', 'currentColor')
+						.attr('text-anchor', 'end')
+						.text(xLabel),
+				);
+		}
+
+		// Create parent <g> element for bars
+		if (!svg.select('.bars').node()) {
+			svg.append('g').classed('bars', true).attr('fill', color);
+		}
 
 		svg
-			.append('g')
-			.attr('fill', color)
+			.select('g.bars')
 			.selectAll('rect')
 			.data(I)
-			.join('rect')
-			.attr('x', xScale(0))
-			.attr('y', (i) => yScale(Y[i]) as number)
-			.attr('width', (i) => xScale(X[i]) * animation - xScale(0))
-			.attr('height', yScale.bandwidth());
-
-		svg
-			.append('g')
-			.attr('fill', 'white')
-			.attr('text-anchor', 'end')
-			.attr('font-family', 'sans-serif')
-			.attr('font-size', 10)
-			.selectAll('text')
-			.data(I)
-			.join('text')
-			.attr('x', (i) => xScale((X[i] * animation) as number))
-			.attr('y', (i) => (yScale(Y[i]) as number) + yScale.bandwidth() / 2)
-			.attr('dy', '0.35em')
-			.attr('dx', -4)
-			.text(title)
-			.call((text) =>
-				text
-					.filter((i) => xScale(X[i]) - xScale(0) < 20) // Short bars
-					.attr('dx', +4)
-					.attr('fill', 'black')
-					.attr('text-anchor', 'start')
+			.join(
+				(enter) => {
+					return enter
+						.append('rect')
+						.attr('x', xScale(0))
+						.attr('y', (i) => yScale(Y[i]) as number)
+						.attr('width', (i) =>
+							Math.max(0, xScale(X[i]) * animation - xScale(0)),
+						)
+						.attr('height', yScale.bandwidth());
+				},
+				(update) => {
+					return update.attr('width', (i) =>
+						Math.max(0, xScale(X[i]) * animation - xScale(0)),
+					);
+				},
+				(exit) => {
+					return exit.remove();
+				},
 			);
 
-		svg.append('g').attr(`transform`, `translate(${marginLeft},0)`).call(yAxis);
-		svg.node();
+		// Create parent <g> element for labels
+		if (!svg.select('.labels').node()) {
+			svg
+				.append('g')
+				.classed('labels', true)
+				.attr('fill', 'white')
+				.attr('text-anchor', 'end')
+				.attr('font-family', 'sans-serif')
+				.attr('font-size', 10);
+		}
+
+		svg
+			.select('g.labels')
+			.selectAll('text')
+			.data(I)
+			.join(
+				(enter) => {
+					return enter
+						.append('text')
+						.attr('x', (i) => xScale((X[i] * animation) as number))
+						.attr('y', (i) => (yScale(Y[i]) as number) + yScale.bandwidth() / 2)
+						.attr('dy', '0.35em')
+						.attr('dx', -4)
+						.text(title)
+						.call((text) =>
+							text
+								.filter((i) => xScale(X[i]) - xScale(0) < 20) // Short bars
+								.attr('dx', +4)
+								.attr('fill', 'black')
+								.attr('text-anchor', 'start'),
+						);
+				},
+				(update) => {
+					return update.attr('x', (i) => xScale((X[i] * animation) as number));
+				},
+				(exit) => {
+					return exit.remove();
+				},
+			);
+
+		// Create y-axis (only once because it's static)
+		if (!svg.select('.y-axis').node()) {
+			svg
+				.append('g')
+				.classed('y-axis', true)
+				.attr(`transform`, `translate(${marginLeft},0)`)
+				.call(yAxis);
+		}
 	}, [height, animation, width]);
 
 	return (
